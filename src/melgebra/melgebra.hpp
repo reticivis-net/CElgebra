@@ -3,10 +3,14 @@
 
 #include <cstring>
 #include <cmath>
-
+#include <tice.h>
 
 #include <cstdio>
 
+void float2str(float value, char *str) {
+    real_t tmp_real = os_FloatToReal(value);
+    os_RealToStr(str, &tmp_real, 0, 2, 2);
+}
 
 namespace MGB {
     // operable object
@@ -29,7 +33,9 @@ namespace MGB {
         double num{};
 
         char *string() override {
-            // TODO: implement
+            static char str[14];
+            float2str(num, str);
+            return str;
         }
     };
 
