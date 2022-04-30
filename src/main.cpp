@@ -2,7 +2,8 @@
 #include <fontlibc.h>
 #include <graphx.h>
 #include <keypadc.h>
-
+#include <debug.h>
+#include "melgebra/melgebra.hpp"
 
 int main() {
     // Start the graphics routines
@@ -28,11 +29,10 @@ int main() {
     fontlib_SetFont(oslfont, static_cast<fontlib_load_options_t>(0));
 
 
-    fontlib_SetWindow(4, 4, LCD_WIDTH - 8, 13*18);
+    fontlib_SetWindow(4, 4, LCD_WIDTH - 8, 13 * 18);
     fontlib_HomeUp();
     fontlib_SetLineSpacing(2, 2);
     fontlib_SetNewlineOptions(FONTLIB_ENABLE_AUTO_WRAP | FONTLIB_AUTO_SCROLL | FONTLIB_PRECLEAR_NEWLINE);
-    fontlib_DrawString("cock\nand\nball\ntortureeeee!\n");
     do {
         kb_Scan();
         if (kb_IsDown(kb_KeyEnter)) {
