@@ -1,7 +1,7 @@
 #include <tice.h>
 //#include <fontlibc.h>
 #include <graphx.h>
-//#include <keypadc.h>
+#include <keypadc.h>
 #include <debug.h>
 #include <cstring>
 #include <cstdlib>
@@ -53,7 +53,7 @@ void draw_text(const char *string, bool large = true) {
         posp = &smallpos;
         colmax = scolmax;
     }
-    curpos* pos = posp;
+    curpos *pos = posp;
     curpos origpos = *pos;
     size_t len = strlen(string) + 1;
     // assign area to do stuff with extra space for auto-newlines i think
@@ -94,17 +94,46 @@ void init_status_bar() {
     }
 }
 
+void printBits(size_t const size, void const *const ptr) {
+    auto *b = (unsigned char *) ptr;
+    unsigned char byte;
+    int i, j;
+
+    for (i = size - 1; i >= 0; i--) {
+        for (j = 7; j >= 0; j--) {
+            byte = (b[i] >> j) & 1;
+            dbg_sprintf(dbgout, "%u", byte);
+        }
+    }
+    dbg_sprintf(dbgout, "\r");
+}
+
 int main() {
     init_terminal();
     init_status_bar();
-    os_SetDrawFGColor(0xffff);
-    os_SetDrawBGColor(0x52AA);
-    draw_text("AMONGUS AARGH   A", false);
-    os_SetDrawBGColor(0xffff);
-    os_SetDrawFGColor(0x0);
+//    os_SetDrawFGColor(0xffff);
+//    os_SetDrawBGColor(0x52AA);
+//    draw_text("AMONGUS AARGH   A", false);
+//    os_SetDrawBGColor(0xffff);
+//    os_SetDrawFGColor(0x0);
     largepos = {1, 0};
     draw_text("some kind of generic text with spaces hehehaha grrr");
     draw_text("1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+
+    kb_EnableOnLatch();
+    uint8_t kbprevstate[7];
+    uint8_t risingedge[7];
+    do {
+        kb_Scan();
+        for (uint8_t i = 0; i < 7; ++i) {
+            auto rowtemp = kb_Data[i + 1];
+            risingedge[i] = rowtemp & (~kbprevstate[i]);
+            kbprevstate[i] = rowtemp;
+        }
+//        printBits(sizeof(uint8_t) * 7, risingedge);
+    } while (!kb_On);
+    kb_ClearOnLatch();
+    kb_DisableOnLatch();
 //    sleep(5);
     return 0;
 }
