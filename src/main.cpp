@@ -5,6 +5,7 @@
 #include <debug.h>
 #include <cstring>
 #include <cstdlib>
+#include <limits.h>
 //#include "melgebra/melgebra.hpp"
 
 uint8_t lrowmax = 14;
@@ -139,6 +140,46 @@ void drawstate() {
     os_SetDrawFGColor(fg);
 }
 
+// see kb_Data in keypadc.h
+const char *keys_normal[7][8] = {
+        {"", "", "", "", "", "", "", ""},
+        {"", "\x1c", "ln(", "log(", "\x12", "\x11", "", ""},
+        {"0", "1", "4", "7", ",", "sin(", "", "X"},
+        {".", "2", "5", "8", "(", "cos(", "", ""},
+        {"\x1A", "3", "6", "9", ")", "tan(", "", ""},
+        {"", "+", "-", "*", "/", "^", "", ""},
+        {"", "", "", "", "", "", "", ""}
+};
+const char *keys_second[7][8] = {
+        {"",    "", "",   "",     "",     "",         "", ""},
+        {"",    "", "e^", "10^",  "\x10", "",         "", ""},
+        {"",    "", "",   "",     "\x1b", "sin\x11(", "", ""},
+        {"i",   "", "",   "",     "{",    "cos\x11(", "", ""},
+        {"ans", "", "",   "",     "}",    "tan\x11(", "", ""},
+        {"",    "", "]",  "\xc1", "e",    "\xc4",     "", ""},
+        {"",    "", "",   "",     "",     "",         "", ""}
+};
+const char *keys_alpha[7][8] = {
+        {"",  "",     "",  "",  "",  "",  "",  ""},
+        {"",  "X",    "S", "N", "I", "D", "A", ""},
+        {" ", "Y",    "T", "O", "J", "E", "B", "/"},
+        {":", "Z",    "U", "P", "K", "F", "C", ""},
+        {"?", "\x5B", "V", "Q", "L", "G", "",  ""},
+        {"",  "\"",   "W", "R", "M", "H", "",  ""},
+        {"",  "",     "",  "",  "",  "",  "",  ""}
+};
+const char *keys_alphalower[7][8] = {
+        {"",  "",     "",  "",  "",  "",  "",  ""},
+        {"",  "x",    "s", "n", "i", "d", "a", ""},
+        {" ", "y",    "t", "o", "j", "e", "b", "/"},
+        {":", "z",    "u", "p", "k", "f", "c", ""},
+        {"?", "\x5B", "v", "q", "l", "g", "",  ""},
+        {"",  "\"",   "w", "r", "m", "h", "",  ""},
+        {"",  "",     "",  "",  "",  "",  "",  ""}
+};
+
+auto key_ref_pointer = &keys_normal;
+
 int main() {
     init_terminal();
     init_status_bar();
@@ -148,11 +189,12 @@ int main() {
 //    os_SetDrawBGColor(0xffff);
 //    os_SetDrawFGColor(0x0);
     largepos = {1, 0};
-    draw_text("> input something here i guess?[][][][]");
+    draw_text("> ");
 
     kb_EnableOnLatch();
-    uint8_t kbprevstate[7];
-    uint8_t risingedge[7];
+    uint8_t kbprevstate[7];  // used to calculate rising edge
+    uint8_t risingedge[7];  // which keys were just pressed this loop
+    char equationbuffer[14*26]; // area to write equations, currently only screen size
     do {
         // calculate rising edge (just pressed keys)
         kb_Scan();
@@ -185,6 +227,47 @@ int main() {
                     break;
             }
         }
+        // get pointer to correct key array
+        switch (calcstate) {
+            case stateenum::none:
+                key_ref_pointer = &keys_normal;
+                break;
+            case stateenum::second:
+                key_ref_pointer = &keys_second;
+                break;
+            case stateenum::alphaupper:
+                key_ref_pointer = &keys_alpha;
+                break;
+            case stateenum::alphalower:
+                key_ref_pointer = &keys_alphalower;
+                break;
+        }
+        bool wrote_key = false;
+        // for every key
+        for (uint8_t row = 0; row < 7; ++row) {
+            for (int col = 0; col < 8; col++) {
+                bool bit = (risingedge[row] >> col) & 1;
+                if (bit) { // if it's enabled
+                    if (strlen((*key_ref_pointer)[row][col]) > 0) { // if there's a string
+                        // draw it
+                        draw_text((*key_ref_pointer)[row][col]);
+                        // mark that we wrote a key
+                        wrote_key = true;
+                    }
+                }
+            }
+        }
+        // if something was written
+        if (wrote_key) {
+            if ( // alpha state and alphalock isnt on
+                    (!alock && (calcstate == stateenum::alphalower || calcstate == stateenum::alphaupper))
+                    || calcstate == stateenum::second // second
+                    ) {
+                // reset state
+                calcstate = stateenum::none;
+            }
+        }
+
         drawstate();
 //        printBits(sizeof(uint8_t) * 7, risingedge);
     } while (!kb_On);
