@@ -108,6 +108,37 @@ void printBits(size_t const size, void const *const ptr) {
     dbg_sprintf(dbgout, "\r");
 }
 
+void drawstate() {
+    uint24_t bg = os_GetDrawBGColor();
+    uint24_t fg = os_GetDrawFGColor();
+    os_SetDrawFGColor(0xffff);
+    os_SetDrawBGColor(0x52AA);
+    switch (calcstate) {
+        case stateenum::none:
+            draw_at_pos(" ", {0, lcolmax});
+            break;
+        case stateenum::second:
+            draw_at_pos("\xe5", {0, lcolmax});
+            break;
+        case stateenum::alphaupper:
+            if (alock) {
+                draw_at_pos("\xe2", {0, lcolmax});
+            } else {
+                draw_at_pos("\xe6", {0, lcolmax});
+            }
+            break;
+        case stateenum::alphalower:
+            if (alock) {
+                draw_at_pos("\xe3", {0, lcolmax});
+            } else {
+                draw_at_pos("\xe7", {0, lcolmax});
+            }
+            break;
+    }
+    os_SetDrawBGColor(bg);
+    os_SetDrawFGColor(fg);
+}
+
 int main() {
     init_terminal();
     init_status_bar();
@@ -117,19 +148,44 @@ int main() {
 //    os_SetDrawBGColor(0xffff);
 //    os_SetDrawFGColor(0x0);
     largepos = {1, 0};
-    draw_text("some kind of generic text with spaces hehehaha grrr");
-    draw_text("1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    draw_text("> input something here i guess?[][][][]");
 
     kb_EnableOnLatch();
     uint8_t kbprevstate[7];
     uint8_t risingedge[7];
     do {
+        // calculate rising edge (just pressed keys)
         kb_Scan();
         for (uint8_t i = 0; i < 7; ++i) {
             auto rowtemp = kb_Data[i + 1];
             risingedge[i] = rowtemp & (~kbprevstate[i]);
             kbprevstate[i] = rowtemp;
         }
+        if (risingedge[0] & kb_2nd) {
+            if (calcstate == stateenum::second) {
+                calcstate = stateenum::none;
+            } else {
+                calcstate = stateenum::second;
+                alock = false;
+            }
+        }
+        if (risingedge[1] & kb_Alpha) {
+            switch (calcstate) {
+                case stateenum::second:
+                    alock = true;
+                case stateenum::none:
+                    calcstate = stateenum::alphaupper;
+                    break;
+                case stateenum::alphaupper:
+                    calcstate = stateenum::alphalower;
+                    break;
+                case stateenum::alphalower:
+                    calcstate = stateenum::none;
+                    alock = false;
+                    break;
+            }
+        }
+        drawstate();
 //        printBits(sizeof(uint8_t) * 7, risingedge);
     } while (!kb_On);
     kb_ClearOnLatch();
